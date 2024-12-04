@@ -68,3 +68,21 @@ function isIterable(obj) {
 
   return typeof obj[Symbol.iterator] === 'function'
 }
+
+function recursive() {
+  console.log('recursive!!')
+  requestIdleCallback(recursive)
+}
+
+const root = document.getElementById('root')
+const div = document.createElement('div')
+const text = document.createTextNode('hello')
+
+div.appendChild(text)
+root.appendChild(div)
+
+const button = document.createElement('button')
+button.textContent = 'recursive'
+button.onclick = recursive
+
+root.appendChild(button)
