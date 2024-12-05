@@ -38,27 +38,24 @@ const elem1 = (
   </div>
 )
 
-const elem2 = <div className="1" children={<div className="3" children={<div className="2" children={'hello'} />} />} />
+function render(vdom, container) {
+  const dom = vdom.type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(vdom.type)
 
-const elem3 = createElement(
-  'div',
-  {className: '1'},
-  createElement('div', {className: '3'}, createElement('div', {className: '2'}, 'hello'))
-)
-
-const elem4 = <div className="2" children="hello" />
-
-render(elem1)
-
-function render(vdom, deps = 0) {
-  delete vdom.props.__self
-  delete vdom.props.__source
-
-  console.log(' '.repeat(deps), vdom.props.nodeValue || `${vdom.type} ${vdom.props.className}`)
+  Object.keys(vdom.props)
+    .filter(isProperty)
+    .forEach((name) => {
+      dom[name] = vdom.props[name]
+    })
 
   vdom.props.children.forEach((child) => {
-    render(child, deps + 1)
+    render(child, dom)
   })
+
+  container.appendChild(dom)
+}
+
+function isProperty(key) {
+  return key !== 'children'
 }
 
 function isIterable(obj) {
@@ -69,20 +66,6 @@ function isIterable(obj) {
   return typeof obj[Symbol.iterator] === 'function'
 }
 
-function recursive() {
-  console.log('recursive!!')
-  requestIdleCallback(recursive)
-}
-
 const root = document.getElementById('root')
-const div = document.createElement('div')
-const text = document.createTextNode('hello')
 
-div.appendChild(text)
-root.appendChild(div)
-
-const button = document.createElement('button')
-button.textContent = 'recursive'
-button.onclick = recursive
-
-root.appendChild(button)
+render(elem1, root)
