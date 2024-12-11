@@ -33,12 +33,42 @@ const elem1 = (
       <div className="2">
         {'hello'}
         {'hello'}
+        <div className="3">
+          <div className="2">
+            {'hello'}
+            {'hello'}
+            <div className="3">
+              <div className="2">
+                {'hello'}
+                {'hello'}
+                <div className="3">
+                  <div className="2">
+                    {'hello'}
+                    {'hello'}
+                    <div className="3">
+                      <div className="2">
+                        {'hello'}
+                        {'hello'}
+                      </div>
+                    </div>
+                    <div className="3">
+                      <div className="2">
+                        {'hello'}
+                        {'hello'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 )
 
-function render(vdom, container) {
+function createDom(vdom) {
   const dom = vdom.type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(vdom.type)
 
   Object.keys(vdom.props)
@@ -47,11 +77,16 @@ function render(vdom, container) {
       dom[name] = vdom.props[name]
     })
 
-  vdom.props.children.forEach((child) => {
-    render(child, dom)
-  })
+  return dom
+}
 
-  container.appendChild(dom)
+function render(element, container) {
+  nextUnitOfWork = {
+    dom: container,
+    props: {
+      children: [element],
+    },
+  }
 }
 
 function isProperty(key) {
@@ -67,5 +102,65 @@ function isIterable(obj) {
 }
 
 const root = document.getElementById('root')
+
+let nextUnitOfWork = null
+
+;(function workLoop(deadline) {
+  let shouldYield = false
+  while (nextUnitOfWork && !shouldYield) {
+    nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
+    shouldYield = deadline.timeRemaining() < 16
+    console.log('work')
+  }
+  requestIdleCallback(workLoop)
+  console.log('check')
+})()
+
+function performUnitOfWork(fiber) {
+  if (!fiber.dom) {
+    fiber.dom = createDom(fiber)
+  }
+
+  if (fiber.parent) {
+    fiber.parent.dom.appendChild(fiber.dom)
+  }
+
+  const elements = fiber.props.children
+  let index = 0
+  let prevSibling = null
+
+  while (index < elements.length) {
+    const element = elements[index]
+
+    const newFiber = {
+      type: element.type,
+      props: element.props,
+      parent: fiber,
+      dom: null,
+    }
+
+    if (index === 0) {
+      fiber.child = newFiber
+    } else {
+      prevSibling.sibling = newFiber
+    }
+
+    prevSibling = newFiber
+    index++
+  }
+
+  if (fiber.child) {
+    return fiber.child
+  }
+
+  let nextFiber = fiber
+
+  while (nextFiber) {
+    if (nextFiber.sibling) {
+      return nextFiber.sibling
+    }
+    nextFiber = nextFiber.parent
+  }
+}
 
 render(elem1, root)
