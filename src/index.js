@@ -125,13 +125,9 @@ function performUnitOfWork(fiber) {
     fiber.parent.dom.appendChild(fiber.dom)
   }
 
-  const elements = fiber.props.children
-  let index = 0
   let prevSibling = null
 
-  while (index < elements.length) {
-    const element = elements[index]
-
+  fiber.props.children.forEach((element, i) => {
     const newFiber = {
       type: element.type,
       props: element.props,
@@ -139,15 +135,14 @@ function performUnitOfWork(fiber) {
       dom: null,
     }
 
-    if (index === 0) {
+    if (i === 0) {
       fiber.child = newFiber
     } else {
       prevSibling.sibling = newFiber
     }
 
     prevSibling = newFiber
-    index++
-  }
+  })
 
   if (fiber.child) {
     return fiber.child
