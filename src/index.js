@@ -71,11 +71,7 @@ const elem1 = (
 function createDom(vdom) {
   const dom = vdom.type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(vdom.type)
 
-  Object.keys(vdom.props)
-    .filter(isProperty)
-    .forEach((name) => {
-      dom[name] = vdom.props[name]
-    })
+  updateDom(dom, {}, vdom.props)
 
   return dom
 }
@@ -264,6 +260,10 @@ function reconcileChildren(wipFiber, elements) {
       }
     }
 
+    if (oldFiber) {
+      oldFiber = oldFiber.sibling
+    }
+
     if (i === 0) {
       wipFiber.child = newFiber
     } else {
@@ -274,4 +274,20 @@ function reconcileChildren(wipFiber, elements) {
   }
 }
 
-render(elem1, root)
+const rerender = (value) => {
+  const elem = (
+    <div>
+      <input
+        onInput={(e) => {
+          rerender(e.target.value)
+        }}
+        value={value}
+      />
+      <h2>Hello, {value}</h2>
+    </div>
+  )
+
+  render(elem, root)
+}
+
+rerender('world')
