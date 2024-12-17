@@ -145,24 +145,7 @@ function performUnitOfWork(fiber) {
     fiber.dom = createDom(fiber)
   }
 
-  let prevSibling = null
-
-  fiber.props.children.forEach((element, i) => {
-    const newFiber = {
-      type: element.type,
-      props: element.props,
-      parent: fiber,
-      dom: null,
-    }
-
-    if (i === 0) {
-      fiber.child = newFiber
-    } else {
-      prevSibling.sibling = newFiber
-    }
-
-    prevSibling = newFiber
-  })
+  reconcileChildren(fiber, fiber.props.children)
 
   if (fiber.child) {
     return fiber.child
@@ -176,6 +159,27 @@ function performUnitOfWork(fiber) {
     }
     nextFiber = nextFiber.parent
   }
+}
+
+function reconcileChildren(wipFiber, elements) {
+  let prevSibling = null
+
+  elements.forEach((element, i) => {
+    const newFiber = {
+      type: element.type,
+      props: element.props,
+      parent: wipFiber,
+      dom: null,
+    }
+
+    if (i === 0) {
+      wipFiber.child = newFiber
+    } else {
+      prevSibling.sibling = newFiber
+    }
+
+    prevSibling = newFiber
+  })
 }
 
 render(elem1, root)
