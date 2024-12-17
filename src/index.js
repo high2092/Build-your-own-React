@@ -81,7 +81,7 @@ function createDom(vdom) {
 }
 
 function render(element, container) {
-  nextUnitOfWork = {
+  nextUnitOfWork = wipRoot = {
     dom: container,
     props: {
       children: [element],
@@ -104,6 +104,7 @@ function isIterable(obj) {
 const root = document.getElementById('root')
 
 let nextUnitOfWork = null
+let wipRoot = null
 
 ;(function workLoop(deadline) {
   let shouldYield = false
@@ -112,17 +113,36 @@ let nextUnitOfWork = null
     shouldYield = deadline.timeRemaining() < 16
     console.log('work')
   }
+
+  if (!nextUnitOfWork && wipRoot) {
+    commitRoot()
+    console.log('commit')
+  }
+
   requestIdleCallback(workLoop)
   console.log('check')
 })()
 
+function commitRoot() {
+  commitWork(wipRoot.child)
+  wipRoot = null
+}
+
+function commitWork(fiber) {
+  if (!fiber) {
+    return
+  }
+
+  const domParent = fiber.parent.dom
+  domParent.appendChild(fiber.dom)
+
+  commitWork(fiber.child)
+  commitWork(fiber.sibling)
+}
+
 function performUnitOfWork(fiber) {
   if (!fiber.dom) {
     fiber.dom = createDom(fiber)
-  }
-
-  if (fiber.parent) {
-    fiber.parent.dom.appendChild(fiber.dom)
   }
 
   let prevSibling = null
