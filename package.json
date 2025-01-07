@@ -3,20 +3,19 @@
   "version": "1.0.0",
   "description": "",
   "keywords": [],
-  "main": "src/index.tsx",
   "dependencies": {
     "react": "16.8.6",
-    "react-dom": "16.8.6",
-    "react-scripts": "^5.0.1"
+    "react-dom": "16.8.6"
   },
   "devDependencies": {
-    "typescript": "3.3.3"
+    "@types/bun": "latest",
+    "@types/react": "^19.0.3",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.7.2"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject"
+    "watch-build": "bun build ./src/index.tsx --watch --outdir ./dist",
+    "dev": "bun run server.ts"
   },
   "browserslist": [
     ">0.2%",

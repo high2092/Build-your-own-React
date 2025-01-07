@@ -1,18 +1,21 @@
 /** @jsx createElement */
 
 type VDOM = {
-  type: 'div' | 'TEXT_ELEMENT'
-  props: {
+  type?: 'div' | 'TEXT_ELEMENT'
+  props?: {
     nodeValue?: string
     children?: VDOM[]
+    [key: string]: any
   }
 }
 
 function createElement(type: VDOM['type'], props: VDOM['props'], ..._children: VDOM[]): VDOM {
   const propsChildren =
-    (typeof props.children === 'string' || !isIterable(props.children)
-      ? [props.children as unknown as VDOM].filter(Boolean)
-      : props.children) || []
+    (props &&
+      (typeof props.children === 'string' || !isIterable(props?.children)
+        ? [props?.children as unknown as VDOM].filter(Boolean)
+        : props?.children)) ||
+    []
 
   const children = [..._children, ...propsChildren]
 
@@ -77,7 +80,7 @@ const elem1 = (
 )
 
 function createDom(vdom: VDOM) {
-  const dom = vdom.type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(vdom.type)
+  const dom = vdom.type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(vdom.type!)
 
   updateDom(dom, {}, vdom.props)
 
@@ -103,11 +106,11 @@ function isProperty(key: string) {
   return key !== 'children' && !isEvent(key)
 }
 
-function isNew(prev: VDOM['props'], next: VDOM['props']) {
+function isNew(prev: VDOM['props'] = {}, next: VDOM['props'] = {}) {
   return (key: string) => prev[key] !== next[key]
 }
 
-function isGone(prev: VDOM['props'], next: VDOM['props']) {
+function isGone(prev: VDOM['props'] = {}, next: VDOM['props'] = {}) {
   return (key: string) => !(key in next)
 }
 
@@ -151,7 +154,7 @@ function removeDom(parentDom: Text | HTMLElement, dom: Text | HTMLElement) {
   parentDom.removeChild(dom)
 }
 
-function updateDom(dom: Text | HTMLElement, prevProps: VDOM['props'], nextProps: VDOM['props']) {
+function updateDom(dom: Text | HTMLElement, prevProps: VDOM['props'] = {}, nextProps: VDOM['props'] = {}) {
   Object.keys(prevProps)
     .filter(isEvent)
     .filter((key) => !(key in nextProps) || isNew(prevProps, nextProps)(key))
@@ -164,6 +167,7 @@ function updateDom(dom: Text | HTMLElement, prevProps: VDOM['props'], nextProps:
     .filter(isProperty)
     .filter(isGone(prevProps, nextProps))
     .forEach((name) => {
+      // @ts-ignore
       dom[name] = ''
     })
 
@@ -171,6 +175,7 @@ function updateDom(dom: Text | HTMLElement, prevProps: VDOM['props'], nextProps:
     .filter(isProperty)
     .filter(isNew(prevProps, nextProps))
     .forEach((name) => {
+      // @ts-ignore
       dom[name] = nextProps[name]
     })
 
@@ -209,18 +214,18 @@ function commitWork(fiber?: Fiber | null) {
   commitWork(fiber.sibling)
 }
 
-function performUnitOfWork(fiber) {
+function performUnitOfWork(fiber: Fiber) {
   if (!fiber.dom) {
     fiber.dom = createDom(fiber)
   }
 
-  reconcileChildren(fiber, fiber.props.children)
+  reconcileChildren(fiber, fiber.props?.children)
 
   if (fiber.child) {
     return fiber.child
   }
 
-  let nextFiber = fiber
+  let nextFiber: Fiber | undefined = fiber
 
   while (nextFiber) {
     if (nextFiber.sibling) {
@@ -228,6 +233,8 @@ function performUnitOfWork(fiber) {
     }
     nextFiber = nextFiber.parent
   }
+
+  return null
 }
 
 interface Fiber {
@@ -241,7 +248,7 @@ interface Fiber {
   effectTag?: 'PLACEMENT' | 'UPDATE' | 'DELETION'
 }
 
-function reconcileChildren(wipFiber: Fiber, elements: VDOM[]) {
+function reconcileChildren(wipFiber: Fiber, elements: VDOM[] = []) {
   let oldFiber: Fiber | null | undefined = wipFiber.alternate?.child
   let prevSibling: Fiber | null = null
 
@@ -302,7 +309,7 @@ const rerender = (value: string) => {
         }}
         value={value}
       />
-      <h2>Hello, {value}</h2>
+      <h2 className="Asdfsa">Hello, {value}</h2>
     </div>
   )
 
