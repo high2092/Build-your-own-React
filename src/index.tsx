@@ -1,10 +1,18 @@
 /** @jsx createElement */
 
-function createElement(type, props, ..._children) {
+type VDOM = {
+  type: 'div' | 'TEXT_ELEMENT'
+  props: {
+    nodeValue?: string
+    children?: VDOM[]
+  }
+}
+
+function createElement(type: VDOM['type'], props: VDOM['props'], ..._children: VDOM[]): VDOM {
   const propsChildren =
-    typeof props.children === 'string' || !isIterable(props.children)
-      ? [props.children].filter(Boolean)
-      : props.children
+    (typeof props.children === 'string' || !isIterable(props.children)
+      ? [props.children as unknown as VDOM].filter(Boolean)
+      : props.children) || []
 
   const children = [..._children, ...propsChildren]
 
@@ -17,7 +25,7 @@ function createElement(type, props, ..._children) {
   }
 }
 
-function createTextElement(text) {
+function createTextElement(text: string): VDOM {
   return {
     type: 'TEXT_ELEMENT',
     props: {
@@ -68,7 +76,7 @@ const elem1 = (
   </div>
 )
 
-function createDom(vdom) {
+function createDom(vdom: VDOM) {
   const dom = vdom.type === 'TEXT_ELEMENT' ? document.createTextNode('') : document.createElement(vdom.type)
 
   updateDom(dom, {}, vdom.props)
@@ -76,7 +84,7 @@ function createDom(vdom) {
   return dom
 }
 
-function render(element, container) {
+function render(element: VDOM, container: HTMLElement | null) {
   deletions = []
   nextUnitOfWork = wipRoot = {
     dom: container,
@@ -87,23 +95,23 @@ function render(element, container) {
   }
 }
 
-function isEvent(key) {
+function isEvent(key: string) {
   return key.startsWith('on')
 }
 
-function isProperty(key) {
+function isProperty(key: string) {
   return key !== 'children' && !isEvent(key)
 }
 
-function isNew(prev, next) {
-  return (key) => prev[key] !== next[key]
+function isNew(prev: VDOM['props'], next: VDOM['props']) {
+  return (key: string) => prev[key] !== next[key]
 }
 
-function isGone(prev, next) {
-  return (key) => !(key in next)
+function isGone(prev: VDOM['props'], next: VDOM['props']) {
+  return (key: string) => !(key in next)
 }
 
-function isIterable(obj) {
+function isIterable(obj?: {[Symbol.iterator]: unknown}): boolean {
   if (!obj) {
     return false
   }
@@ -113,16 +121,16 @@ function isIterable(obj) {
 
 const root = document.getElementById('root')
 
-let nextUnitOfWork = null
-let currentRoot = null
-let wipRoot = null
-let deletions = null
+let nextUnitOfWork: Fiber | null = null
+let currentRoot: Fiber | null = null
+let wipRoot: Fiber | null = null
+let deletions: Fiber[] | null = null
 
-;(function workLoop(deadline) {
+;(function workLoop(deadline?: IdleDeadline) {
   let shouldYield = false
   while (nextUnitOfWork && !shouldYield) {
     nextUnitOfWork = performUnitOfWork(nextUnitOfWork)
-    shouldYield = deadline.timeRemaining() < 16
+    shouldYield = !!deadline && deadline.timeRemaining() < 16
     console.log('work')
   }
 
@@ -135,15 +143,15 @@ let deletions = null
   console.log('check')
 })()
 
-function appendDom(parentDom, dom) {
+function appendDom(parentDom: Text | HTMLElement, dom: Text | HTMLElement) {
   parentDom.appendChild(dom)
 }
 
-function removeDom(parentDom, dom) {
+function removeDom(parentDom: Text | HTMLElement, dom: Text | HTMLElement) {
   parentDom.removeChild(dom)
 }
 
-function updateDom(dom, prevProps, nextProps) {
+function updateDom(dom: Text | HTMLElement, prevProps: VDOM['props'], nextProps: VDOM['props']) {
   Object.keys(prevProps)
     .filter(isEvent)
     .filter((key) => !(key in nextProps) || isNew(prevProps, nextProps)(key))
@@ -176,25 +184,25 @@ function updateDom(dom, prevProps, nextProps) {
 }
 
 function commitRoot() {
-  deletions.forEach(commitWork)
-  commitWork(wipRoot.child)
+  deletions!.forEach(commitWork)
+  commitWork(wipRoot?.child)
   currentRoot = wipRoot
   wipRoot = null
 }
 
-function commitWork(fiber) {
+function commitWork(fiber?: Fiber | null) {
   if (!fiber) {
     return
   }
 
-  const domParent = fiber.parent.dom
+  const domParent = fiber.parent?.dom
 
-  if (fiber.effectTag === 'PLACEMENT' && fiber.dom) {
-    appendDom(domParent, fiber.dom)
+  if (fiber.effectTag === 'PLACEMENT') {
+    appendDom(domParent!, fiber.dom!)
   } else if (fiber.effectTag === 'DELETION') {
-    removeDom(domParent, fiber.dom)
+    removeDom(domParent!, fiber.dom!)
   } else if (fiber.effectTag === 'UPDATE' && fiber.dom) {
-    updateDom(fiber.dom, fiber.alternate.props, fiber.props)
+    updateDom(fiber.dom, fiber.alternate!.props, fiber.props)
   }
 
   commitWork(fiber.child)
@@ -222,22 +230,33 @@ function performUnitOfWork(fiber) {
   }
 }
 
-function reconcileChildren(wipFiber, elements) {
-  let oldFiber = wipFiber.alternate?.child
-  let prevSibling = null
+interface Fiber {
+  type?: VDOM['type']
+  props: VDOM['props']
+  dom: Text | HTMLElement | null
+  parent?: Fiber
+  child?: Fiber | null
+  sibling?: Fiber
+  alternate?: Fiber | null
+  effectTag?: 'PLACEMENT' | 'UPDATE' | 'DELETION'
+}
+
+function reconcileChildren(wipFiber: Fiber, elements: VDOM[]) {
+  let oldFiber: Fiber | null | undefined = wipFiber.alternate?.child
+  let prevSibling: Fiber | null = null
 
   for (let i = 0; i < elements.length || oldFiber; i++) {
     const element = elements[i]
 
-    let newFiber = null
+    let newFiber: Fiber | null = null
 
     const isSameType = element && oldFiber && element.type === oldFiber.type
 
     if (isSameType) {
       newFiber = {
-        type: oldFiber.type,
+        type: oldFiber!.type,
         props: element.props,
-        dom: oldFiber.dom,
+        dom: oldFiber!.dom,
         parent: wipFiber,
         alternate: oldFiber,
         effectTag: 'UPDATE',
@@ -256,7 +275,7 @@ function reconcileChildren(wipFiber, elements) {
 
       if (oldFiber) {
         oldFiber.effectTag = 'DELETION'
-        deletions.push(oldFiber)
+        deletions!.push(oldFiber)
       }
     }
 
@@ -267,19 +286,19 @@ function reconcileChildren(wipFiber, elements) {
     if (i === 0) {
       wipFiber.child = newFiber
     } else {
-      prevSibling.sibling = newFiber
+      prevSibling!.sibling = newFiber!
     }
 
     prevSibling = newFiber
   }
 }
 
-const rerender = (value) => {
+const rerender = (value: string) => {
   const elem = (
     <div>
       <input
         onInput={(e) => {
-          rerender(e.target.value)
+          rerender((e.target as HTMLInputElement).value)
         }}
         value={value}
       />
