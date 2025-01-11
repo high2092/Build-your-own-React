@@ -197,17 +197,25 @@ function commitRoot() {
   wipRoot = null
 }
 
+function findDomParentFiber(fiber: Fiber) {
+  let domParentFiber = fiber.parent
+  while (!domParentFiber?.dom) {
+    domParentFiber = domParentFiber!.parent
+  }
+  return domParentFiber
+}
+
 function commitWork(fiber?: Fiber | null) {
   if (!fiber) {
     return
   }
 
-  const domParent = fiber.parent?.dom
+  const domParentFiber = findDomParentFiber(fiber)
 
   if (fiber.effectTag === 'PLACEMENT') {
-    appendDom(domParent!, fiber.dom!)
+    fiber.dom && appendDom(domParentFiber.dom!, fiber.dom)
   } else if (fiber.effectTag === 'DELETION') {
-    removeDom(domParent!, fiber.dom!)
+    commitDeletion(fiber, domParentFiber.dom)
   } else if (fiber.effectTag === 'UPDATE' && fiber.dom) {
     updateDom(fiber.dom, fiber.alternate!.props, fiber.props)
   }
@@ -216,12 +224,24 @@ function commitWork(fiber?: Fiber | null) {
   commitWork(fiber.sibling)
 }
 
-function performUnitOfWork(fiber: Fiber) {
-  if (!fiber.dom) {
-    fiber.dom = createDom(fiber)
+function commitDeletion(fiber: Fiber, domParent: Fiber['dom']) {
+  if (fiber.dom) {
+    removeDom(domParent!, fiber.dom!)
+  } else {
+    fiber.child && commitDeletion(fiber.child, domParent)
   }
+}
 
-  reconcileChildren(fiber, fiber.props?.children)
+function isFunctionComponent(fiber: Fiber): fiber is FunctionFiber {
+  return fiber.type instanceof Function
+}
+
+function performUnitOfWork(fiber: Fiber) {
+  if (isFunctionComponent(fiber)) {
+    updateFunctionComponent(fiber)
+  } else {
+    updateHostComponent(fiber)
+  }
 
   if (fiber.child) {
     return fiber.child
@@ -239,8 +259,19 @@ function performUnitOfWork(fiber: Fiber) {
   return null
 }
 
-interface Fiber {
-  type?: VDOM['type']
+function updateFunctionComponent(fiber: FunctionFiber) {
+  const children = [fiber.type(fiber.props)]
+  reconcileChildren(fiber, children)
+}
+
+function updateHostComponent(fiber: NonFunctionFiber) {
+  if (!fiber.dom) {
+    fiber.dom = createDom(fiber)
+  }
+  reconcileChildren(fiber, fiber.props?.children)
+}
+
+interface IFiber {
   props: VDOM['props']
   dom: Text | HTMLElement | null
   parent?: Fiber
@@ -249,6 +280,11 @@ interface Fiber {
   alternate?: Fiber | null
   effectTag?: 'PLACEMENT' | 'UPDATE' | 'DELETION'
 }
+
+type FunctionFiber = IFiber & {type: Function}
+type NonFunctionFiber = IFiber & {type?: VDOM['type']}
+
+type Fiber = FunctionFiber | NonFunctionFiber
 
 function reconcileChildren(wipFiber: Fiber, elements: VDOM[] = []) {
   let oldFiber: Fiber | null | undefined = wipFiber.alternate?.child
@@ -318,4 +354,8 @@ const rerender = (value: string) => {
   render(elem, root)
 }
 
-rerender('world')
+function App({name}: {name: string}) {
+  return <h1>Hi {name}</h1>
+}
+const app = <App name="asdf" />
+render(app, root)
