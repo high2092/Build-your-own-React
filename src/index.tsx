@@ -259,9 +259,44 @@ function performUnitOfWork(fiber: Fiber) {
   return null
 }
 
+let wipFiber: Fiber | null = null
+let hookIndex: number = -1
+
 function updateFunctionComponent(fiber: FunctionFiber) {
+  wipFiber = fiber
+  hookIndex = 0
+  wipFiber.hooks = []
   const children = [fiber.type(fiber.props)]
   reconcileChildren(fiber, children)
+}
+
+export function useState<T>(initial?: T) {
+  const oldHook: Hook<T> | undefined = wipFiber!.alternate?.hooks?.[hookIndex]
+  const hook: Hook<T> = {
+    state: oldHook ? oldHook.state : initial,
+    queue: [],
+  }
+
+  const actions = oldHook ? oldHook.queue : []
+  actions.forEach((action: Action<T>) => {
+    hook.state = action(hook.state!)
+  })
+
+  const setState = (action: Action<T>) => {
+    hook.queue.push(action)
+
+    deletions = []
+    nextUnitOfWork = wipRoot = {
+      dom: currentRoot!.dom,
+      props: currentRoot!.props,
+      alternate: currentRoot,
+    }
+  }
+
+  wipFiber!.hooks!.push(hook)
+  hookIndex++
+
+  return [hook.state, setState] as const
 }
 
 function updateHostComponent(fiber: NonFunctionFiber) {
@@ -279,7 +314,15 @@ interface IFiber {
   sibling?: Fiber
   alternate?: Fiber | null
   effectTag?: 'PLACEMENT' | 'UPDATE' | 'DELETION'
+  hooks?: Hook<any>[]
 }
+
+interface Hook<T> {
+  state?: T
+  queue: Action<T>[]
+}
+
+type Action<T> = (state: T) => T
 
 type FunctionFiber = IFiber & {type: Function}
 type NonFunctionFiber = IFiber & {type?: VDOM['type']}
@@ -358,4 +401,16 @@ function App({name}: {name: string}) {
   return <h1>Hi {name}</h1>
 }
 const app = <App name="asdf" />
-render(app, root)
+
+function Counter() {
+  const [state, setState] = useState(0)
+
+  return (
+    <div>
+      <h1 onClick={() => setState((c) => c + 1)}>Count: {state}</h1>
+    </div>
+  )
+}
+const counter = <Counter />
+
+render(counter, root)
