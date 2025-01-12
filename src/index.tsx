@@ -403,11 +403,18 @@ function App({name}: {name: string}) {
 const app = <App name="asdf" />
 
 function Counter() {
+  const [condition, setCondition] = useState(false)
+
+  if (condition) {
+    useState(-1)
+  }
+
   const [state, setState] = useState(0)
 
   return (
     <div>
       <h1 onClick={() => setState((c) => c + 1)}>Count: {state}</h1>
+      <div onClick={() => setCondition((condition) => !condition)}>Condition: {JSON.stringify(condition)}</div>
     </div>
   )
 }
